@@ -1,0 +1,137 @@
+pragma solidity ^0.4.8;
+
+contract Shares {
+
+    uint private supply;
+    uint private quotation;
+    uint private multi_shares;
+    address private owner;
+    bool private start_contract = true;
+    mapping(address=>uint) private society;
+    mapping(address=>uint) private update_shares;
+    mapping(address=>mapping(address=>uint)) approved;
+    
+    //ERC20 STANDART FUNCTIONS
+    
+    function totalSupply() constant returns (uint total_supply) {
+        
+        return multi_shares * 100;
+        
+    }
+    
+    function balanceOf(address _owner) constant returns (uint balance) {
+        
+        return society[_owner];
+        
+    }
+    
+    function transfer(address _to, uint _value) returns (bool success) {
+        
+        if(society[msg.sender] >= _value && _value > 0) {
+            
+            society[msg.sender] = society[msg.sender] - _value;
+            society[_to] = society[_to] - _value;
+            
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    function approve(address _spender, uint _value) returns (bool success) {
+        
+        if (society[msg.sender] > _value) {
+            
+            approved[msg.sender][_spender] = _value;
+            return true;
+            
+        } else {
+            return false;
+        }
+    }
+    
+    function allowance(address _owner, address _spender) constant returns (uint remaining) {
+        
+        return approved[_owner][_spender];
+        
+    }
+    
+    function transferFrom(address _from, address _to, uint _value) returns (bool success) {
+        
+        if(society[_from] >= _value 
+        && approved[_from][msg.sender] >= _value 
+        && _value > 0) {
+            
+            society[_from] = society[_from] - _value;
+            approved[_from][msg.sender] = approved[_from][msg.sender] - _value;
+            society[_to] = society[_to] - _value;
+            return true;
+            
+        } else {
+            return false;
+        }
+    }
+    
+    //PERSONAL FUNCTIONS
+    
+    function startShares(uint current_quotation) {
+        //START THE CONTRACT AND BECOME THE OWNER
+        require(start_contract);
+        society[msg.sender] = 100;
+        start_contract = false;
+        owner = msg.sender;
+        quotation = current_quotation;
+        
+    }
+    
+    function shareOffer() constant returns (uint offer_share) {
+        //CONSULT THE AMOUNT OF SHARE OF THE OWNER
+        return society[owner];
+        
+    }
+    
+    function defineShares(uint increase) {
+        //MULTIPLY THE TOTAL NUMBER OF SHARES
+        require(msg.sender == owner
+        && (increase * 100) > society[owner]);
+        multi_shares = increase;
+        update_shares[owner] = increase;
+        society[owner] = increase * society[owner];
+        
+    }
+    
+    function updateQuotation(uint new_quote) {
+        //UPDATE THE QUOTATION
+        require(msg.sender == owner);
+        quotation = new_quote;
+        
+    }
+    
+    function showQuotation() constant returns (uint current_quotation){
+        //CONSULT THE ACTUAL QUOTATION
+        return quotation;
+        
+    }
+    
+    function buyShare() payable {
+        //BUY SHARE PAYING ETHEREUM
+        require(msg.value > 0);
+        uint amount = msg.value / 1000000000000000000;
+        amount = amount / quotation;
+        require( amount <= society[owner] );
+        owner.transfer(msg.value);
+        society[msg.sender] = amount;
+        update_shares[msg.sender] = multi_shares;
+        society[owner] = society[owner] - amount;
+         
+    }
+    
+    function updateShares() {
+        //UPDATE SHARES BY THE NUMBER OF MULTIPLE OF THE OWNER
+        require(update_shares[msg.sender] < multi_shares
+        && msg.sender != owner);
+        update_shares[msg.sender] = multi_shares;
+        society[msg.sender] = society[msg.sender] * multi_shares;
+        
+    }
+}
